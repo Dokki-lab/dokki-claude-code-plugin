@@ -1,0 +1,19 @@
+{
+  "name": "dokki",
+  "description": "Create and edit Dokki documents, tables, and artifacts, publish public sites, and run semantic search across your workspace — directly from Claude Code.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Dokki",
+    "url": "https://dokki.one"
+  },
+  "homepage": "https://dokki.one",
+  "repository": "https://github.com/Dokki-lab/dokki-plugin",
+  "license": "MIT",
+  "keywords": [
+    "dokki",
+    "documents",
+    "collaboration",
+    "publishing",
+    "mcp"
+  ]
+}
