@@ -12,10 +12,10 @@ This is the **entry skill** for Dokki. When a user describes what they want to d
 
 | Intent | Skill | Core tools |
 |--------|-------|-----------|
-| Browse, search, organize resources | `dokki-workspace` | list_*, search_workspace, grep_workspace, move, rename, tag, share, delete |
+| Browse, search, organize resources | `dokki-workspace` | list_*, search_workspace, grep_workspace, related_entities, upload_file, channel messages, move, rename, tag, share, delete |
 | Write/edit rich text documents | `dokki-document` | create_document, doc_read/insert/replace/delete |
 | Work with structured tabular data | `dokki-table` | create_table, table_read/add/update/delete_* |
-| Build interactive UI / charts / diagrams | `dokki-artifact` | create_artifact, artifact_read/update/patch |
+| Build HTML/JSX UI / charts / diagrams | `dokki-artifact` | create_artifact, artifact_read/update/patch |
 | Publish as a public site | `dokki-publish` | *_publish_site, publish_resource, *_custom_domain |
 
 ## Intent → Skill Routing
@@ -28,7 +28,10 @@ Match the user's request to these patterns:
 |---------------|----------|
 | "What's in my workspace?" / "Show me my docs" | `dokki-workspace` (browse) |
 | "Find docs about X" / "What do we have on Y?" | `dokki-workspace` (search) |
+| "How is X related to Y?" / "Map relationships around X" | `dokki-workspace` (related entities) |
 | "Move / rename / tag / share / delete X" | `dokki-workspace` (organize) |
+| "Ask Alice to confirm" / "Notify the workspace" | `dokki-workspace` (channel) |
+| "Upload this file/image" | `dokki-workspace` (upload), then route to `dokki-document` if inserting into a doc |
 | "Write a doc about X" / "Create a note" | `dokki-document` (create) |
 | "Add / edit / rewrite section in doc" | `dokki-document` (edit) |
 | "Create a table of X" / "Track Y in a table" | `dokki-table` (create) |
@@ -76,7 +79,13 @@ These are the high-value flows — chain skills in this order:
 4. `dokki-workspace` → `tag_resource` to categorize
 5. Confirm summary before executing
 
-#### 6. Update Published Content
+#### 6. Human Confirmation
+**"Ask the team before doing this"**
+1. `dokki-workspace` → `list_channel_members` if the user names a person
+2. `dokki-workspace` → `send_channel_message` with `require_response: true`
+3. `dokki-workspace` → `read_channel` before proceeding
+
+#### 7. Update Published Content
 **"The published doc is stale, refresh it"**
 1. `dokki-document` → edit the source resource
 2. `dokki-publish` → re-call `publish_resource` (refreshes frozen snapshot)
@@ -86,7 +95,10 @@ These are the high-value flows — chain skills in this order:
 
 Before any operation, resolve context in this order:
 
-1. **Workspace**: If not specified and user has only one, use it. Otherwise `list_workspaces` and ask.
+1. **Workspace**: If not specified and user has only one, use it. Otherwise `list_workspaces`
+   and ask. Workspaces may be Personal (`org_id: null`) or Org-owned (`org_id`/`org_name`);
+   include Org name when disambiguating. If the desired Org is missing, the MCP connection
+   may not be authorized for it.
 2. **Resource**: If user gives a name, `list_resources` to match by name. If multiple match, ask. If the name is not obvious, `search_workspace` as fallback.
 3. **Parent folder** (for creates): If not specified, create at workspace root.
 

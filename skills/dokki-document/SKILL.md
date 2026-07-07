@@ -2,7 +2,7 @@
 name: dokki-document
 description: Create new documents or edit existing ones using compact node-based operations. Use for writing and modifying rich-text content.
 argument-hint: <title-or-resource-id> [instruction]
-allowed-tools: mcp__dokki__create_document mcp__dokki__doc_read mcp__dokki__doc_insert mcp__dokki__doc_replace mcp__dokki__doc_delete mcp__dokki__doc_rewrite
+allowed-tools: mcp__dokki__create_document mcp__dokki__upload_file mcp__dokki__doc_read mcp__dokki__doc_insert mcp__dokki__doc_replace mcp__dokki__doc_delete mcp__dokki__doc_rewrite
 ---
 
 # Dokki Document — Create & Edit
@@ -42,6 +42,8 @@ create_document:
    - `> quote`, `| table | syntax |`
    - `**bold**`, `*italic*`, `[link](url)`, `` `code` ``
 4. Keep paragraphs focused; use headings for scannable sections
+5. For local images, call `upload_file` with `inline_image: true` first, then insert
+   the returned image `node` with `doc_insert` or use its `url` as the image `src`.
 
 ### Templates
 
@@ -185,8 +187,10 @@ not the whole document.
 // Blockquote
 { "type": "blockquote", "text": "Less is more." }
 
-// Image (URL in text)
-{ "type": "image", "text": "https://example.com/img.png" }
+// Image
+{ "type": "image", "src": "https://example.com/img.png", "alt": "Description" }
+// Image returned from upload_file inline_image mode
+{ "type": "image", "src": "<returned url>", "alt": "<returned alt text>" }
 
 // Horizontal rule
 { "type": "horizontalRule" }
@@ -216,4 +220,5 @@ not the whole document.
 
 - Need to publish the doc? → `dokki-publish`
 - Need to tag, move, or share? → `dokki-workspace`
+- Need to insert a local image? → `upload_file` with `inline_image: true`, then `doc_insert`
 - Need to embed a chart? → `dokki-artifact` (create artifact), then link it in the doc

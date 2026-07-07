@@ -1,6 +1,6 @@
 ---
 name: dokki-artifact
-description: Create or edit interactive JSX artifacts — React components, charts (Recharts), diagrams (Mermaid), animations (Framer Motion). Use for anything interactive or visual beyond what a document can express.
+description: Create or edit HTML or JSX artifacts — self-contained pages, React components, charts (Recharts), diagrams (Mermaid), animations (Framer Motion). Use for anything interactive or visual beyond what a document can express.
 argument-hint: <description-or-id> [instruction]
 allowed-tools: mcp__dokki__create_artifact mcp__dokki__artifact_read mcp__dokki__artifact_update mcp__dokki__artifact_patch
 ---
@@ -13,15 +13,24 @@ allowed-tools: mcp__dokki__create_artifact mcp__dokki__artifact_read mcp__dokki_
 |------|----------|
 | Static prose, lists, simple tables | `dokki-document` |
 | Structured rows/columns with sort/filter | `dokki-table` |
-| Interactive widget, custom layout, animation | **artifact** |
-| Chart / graph from data | **artifact** (Recharts) |
-| Flowchart, sequence diagram, state diagram | **artifact** (Mermaid) |
+| Self-contained HTML page or widget | **artifact** (HTML) |
+| Interactive widget, custom layout, animation | **artifact** (JSX or HTML) |
+| Chart / graph from data | **artifact** (JSX + Recharts, or HTML with inline data) |
+| Flowchart, sequence diagram, state diagram | **artifact** (JSX + Mermaid, or HTML/SVG) |
 
 ---
 
-## Runtime Environment
+## Format Choice
 
-Sandboxed React runtime. Only these imports work:
+- Use **HTML** for a self-contained document with inline styles/scripts or CDN assets.
+- Use **JSX** when you specifically need a React component. JSX must default-export
+  a component and can use the runtime libraries below.
+- `artifact_read` returns source only. To see a rendered inline preview, use
+  `dokki-workspace` `preview_resource`.
+
+## JSX Runtime Environment
+
+Sandboxed React runtime. Only these imports work in JSX artifacts:
 
 ```jsx
 // React 18 — hooks
@@ -59,10 +68,10 @@ create_artifact:
   name: string
   workspace_id: string
   parent_id?: string
-  source: string    # Complete JSX module, must export default
+  source: string    # Complete HTML document/fragment or JSX module
 ```
 
-### Required source structure
+### Required JSX source structure
 
 ```jsx
 import { useState } from 'react';
@@ -77,6 +86,8 @@ export default function MyComponent() {
   );
 }
 ```
+
+For HTML artifacts, pass a complete HTML document or HTML fragment in `source`.
 
 ### Template: Chart Dashboard
 
@@ -201,7 +212,8 @@ How big is the change?
 | Pitfall | Why it hurts | Fix |
 |---------|-------------|-----|
 | Importing from packages not whitelisted | Runtime error, blank artifact | Stick to the listed imports |
-| Missing `export default` | Component won't render | Every artifact must `export default` |
+| Missing `export default` in JSX | Component won't render | JSX artifacts must `export default` |
+| Treating HTML as JSX | Compile errors or escaped markup | Use complete HTML source when you want raw HTML |
 | Using CSS files / styled-components | No CSS pipeline in sandbox | Use Tailwind utility classes only |
 | Forgetting `ResponsiveContainer` on charts | Charts render at 0px | Wrap Recharts in `<ResponsiveContainer width="100%" height={N}>` |
 | Mermaid imported from `mermaid-js` | Wrong path — fails | Use `import { Mermaid } from 'mermaid'` |
