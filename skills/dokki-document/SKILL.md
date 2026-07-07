@@ -43,7 +43,7 @@ create_document:
    - `**bold**`, `*italic*`, `[link](url)`, `` `code` ``
 4. Keep paragraphs focused; use headings for scannable sections
 5. For local images, call `upload_file` with `inline_image: true` first, then insert
-   the returned image node or URL with `doc_insert`.
+   the returned image `node` with `doc_insert` or use its `url` as the image `src`.
 
 ### Templates
 
@@ -187,10 +187,10 @@ not the whole document.
 // Blockquote
 { "type": "blockquote", "text": "Less is more." }
 
-// Image (URL in text)
-{ "type": "image", "text": "https://example.com/img.png" }
+// Image
+{ "type": "image", "src": "https://example.com/img.png", "alt": "Description" }
 // Image returned from upload_file inline_image mode
-{ "type": "image", "text": "<returned url>", "alt": "<returned alt text>" }
+{ "type": "image", "src": "<returned url>", "alt": "<returned alt text>" }
 
 // Horizontal rule
 { "type": "horizontalRule" }

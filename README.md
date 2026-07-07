@@ -18,10 +18,10 @@ This plugin bundles:
 | Skill | Command | Scope |
 |-------|---------|-------|
 | Entry / router | `/dokki:dokki <intent>` | Interprets intent, routes to the right skill, orchestrates multi-skill workflows |
-| Workspace | `/dokki:dokki-workspace` | Browse, search, organize (`list_*`, `search_workspace`, `grep_workspace`, `related_entities`, `preview_resource`, upload, move, tag, share, delete) |
-| Document | `/dokki:dokki-document` | Rich-text docs (`create_document`, `doc_read/insert/replace/delete/rewrite`) |
+| Workspace | `/dokki:dokki-workspace` | Browse, search, organize, and coordinate (`list_*`, `search_workspace`, `grep_workspace`, `related_entities`, `preview_resource`, upload, channel messages, move, tag, share, delete) |
+| Document | `/dokki:dokki-document` | Rich-text docs and inline images (`create_document`, `upload_file`, `doc_read/insert/replace/delete/rewrite`) |
 | Table | `/dokki:dokki-table` | Structured data (`create_table`, `table_*`) |
-| Artifact | `/dokki:dokki-artifact` | Interactive JSX / charts (`create_artifact`, `artifact_*`) |
+| Artifact | `/dokki:dokki-artifact` | HTML or JSX artifacts, charts, and interactive UI (`create_artifact`, `artifact_*`) |
 | Publish | `/dokki:dokki-publish` | Public sites & custom domains (`*_publish_site`, `*_custom_domain`) |
 
 ## Install

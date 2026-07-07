@@ -15,7 +15,8 @@ allowed-tools: mcp__dokki-publish__get_publish_site mcp__dokki-publish__create_p
 ## Mental Model
 
 - Each **workspace** can have **one published site** at `dokki.one/pub/{slug}`
-- The site is **inactive by default** — not publicly reachable until `is_active = true`
+- `create_publish_site` defaults to `is_active: true` if omitted; pass `is_active: false`
+  when staging a site before launch.
 - **Resources** (documents, tables, artifacts) are published **individually** into a site — the site is a curated subset
 - Published content is a **frozen snapshot** — editing the source doesn't auto-update the public version; you must re-publish
 - **Custom domains** can replace the `dokki.one/pub/...` URL (e.g., `docs.example.com`)
@@ -66,7 +67,7 @@ Use this when the user says "I want to publish these docs as a public site".
    create_publish_site:
      workspace_id
      slug          # e.g. "acme-docs"; lowercase, hyphens only
-     is_active: false  # start hidden until content is ready
+     is_active: false  # explicit: start hidden until content is ready
    ```
    Save the returned `site_id`.
 
@@ -164,7 +165,7 @@ A published site = curated collection of resources on a public, navigable websit
 | Pitfall | Why it hurts | Fix |
 |---------|-------------|-----|
 | Publishing then editing, expecting auto-refresh | Published content is **frozen** — live edits invisible to the public | Re-call `publish_resource` to refresh the snapshot |
-| Creating site with `is_active: true` before adding content | Empty public URL → bad first impression | Start with `is_active: false`, flip it after publishing resources |
+| Omitting `is_active` when creating a staging site | Tool defaults to live, so an empty URL may be public | Pass `is_active: false`, then flip it after publishing resources |
 | Using marketing-y slug with caps/spaces | Tool lowercases + hyphenates, may surprise user | Confirm cleaned slug with user before creating |
 | Removing domain when user meant to disable site | Nukes Cloudflare hostname record — re-adding takes time | Confirm intent: disable (is_active=false) vs remove domain |
 | Not waiting for SSL on custom domain | User sees cert warnings | Tell user to run `check_domain_status` and wait for `active` |

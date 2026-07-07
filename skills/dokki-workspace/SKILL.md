@@ -1,8 +1,8 @@
 ---
 name: dokki-workspace
-description: Browse Personal and Org workspaces, search the knowledge base, explore related entities, upload files, and organize resources (move, rename, tag, share, delete). Use for navigation, discovery, and workspace hygiene.
+description: Browse Personal and Org workspaces, search the knowledge base, explore related entities, upload files, message workspace members, and organize resources (move, rename, tag, share, delete). Use for navigation, discovery, coordination, and workspace hygiene.
 argument-hint: [action] [resource-name-or-id]
-allowed-tools: mcp__dokki__list_workspaces mcp__dokki__list_resources mcp__dokki__create_workspace mcp__dokki__create_folder mcp__dokki__upload_file mcp__dokki__move_resource mcp__dokki__update_resource mcp__dokki__delete_resource mcp__dokki__tag_resource mcp__dokki__untag_resource mcp__dokki__share_resource mcp__dokki__search_workspace mcp__dokki__grep_workspace mcp__dokki__related_entities mcp__dokki__preview_resource
+allowed-tools: mcp__dokki__list_workspaces mcp__dokki__list_resources mcp__dokki__create_workspace mcp__dokki__create_folder mcp__dokki__upload_file mcp__dokki__move_resource mcp__dokki__update_resource mcp__dokki__delete_resource mcp__dokki__tag_resource mcp__dokki__untag_resource mcp__dokki__share_resource mcp__dokki__search_workspace mcp__dokki__grep_workspace mcp__dokki__related_entities mcp__dokki__preview_resource mcp__dokki__list_channel_members mcp__dokki__send_channel_message mcp__dokki__read_channel
 ---
 
 # Dokki Workspace — Browse, Search & Organize
@@ -14,8 +14,9 @@ Determine which mode the user is in:
 ```
 User request
 │
-├── "Show me / what's in / list…"        → BROWSE
+├── "Show me / what's in / list…"                 → BROWSE
 ├── "Find / search / where is / look up / related" → SEARCH
+├── "Ask / notify / confirm with a teammate"      → CHANNEL
 └── "Move / rename / tag / share / delete / organize" → ORGANIZE
 ```
 
@@ -122,6 +123,28 @@ Default to `search_workspace`. Reach for `grep_workspace` only when the user wan
 
 ---
 
+## CHANNEL Mode
+
+Use workspace channel tools when the user wants to notify people, ask for approval,
+or wait for a teammate's answer before continuing.
+
+### Workflow
+
+1. Resolve the `workspace_id`. If needed, call `list_workspaces`.
+2. If addressing a person by name, call `list_channel_members` first to identify members.
+3. Call `send_channel_message` with clear text. Set `require_response: true` when waiting
+   for approval or an answer.
+4. Call `read_channel` to check recent replies before proceeding.
+
+### Pitfalls
+
+- Messages are posted as the authenticated Dokki user.
+- For destructive or visible actions, wait for an explicit reply before continuing.
+- Keep the message self-contained: what you plan to do, what answer you need, and any
+  resource links or short IDs.
+
+---
+
 ## ORGANIZE Mode
 
 ### Action Matrix
@@ -132,6 +155,7 @@ Default to `search_workspace`. Reach for `grep_workspace` only when the user wan
 | Rename | `update_resource` | resource_id, name | safe |
 | Change icon | `update_resource` | resource_id, icon (tables/folders only) | safe |
 | Upload file | `upload_file` | workspace_id, name, content_base64, mime_type?, parent_path? | safe |
+| Ask/notify workspace members | `list_channel_members`, `send_channel_message`, `read_channel` | workspace_id, content, require_response? | visible to workspace |
 | Move | `move_resource` | resource_id, new_parent_path, insert_after_id? | safe |
 | Delete (archive) | `delete_resource` | resource_id | ⚠️ soft — recoverable |
 | Add tags | `tag_resource` | resource_id, tag_names[] | safe |
@@ -177,4 +201,5 @@ For "clean up my workspace":
 
 - After browsing, user may want to `doc_read` or edit → route to `dokki-document`
 - After search, user may want to read full content → route to `dokki-document`
+- After asking for approval, use `read_channel` before executing the approved action
 - After organizing, user may want to publish → route to `dokki-publish`
