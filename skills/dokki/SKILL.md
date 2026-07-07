@@ -12,7 +12,7 @@ This is the **entry skill** for Dokki. When a user describes what they want to d
 
 | Intent | Skill | Core tools |
 |--------|-------|-----------|
-| Browse, search, organize resources | `dokki-workspace` | list_*, search_workspace, grep_workspace, move, rename, tag, share, delete |
+| Browse, search, organize resources | `dokki-workspace` | list_*, search_workspace, grep_workspace, related_entities, upload_file, move, rename, tag, share, delete |
 | Write/edit rich text documents | `dokki-document` | create_document, doc_read/insert/replace/delete |
 | Work with structured tabular data | `dokki-table` | create_table, table_read/add/update/delete_* |
 | Build interactive UI / charts / diagrams | `dokki-artifact` | create_artifact, artifact_read/update/patch |
@@ -28,7 +28,9 @@ Match the user's request to these patterns:
 |---------------|----------|
 | "What's in my workspace?" / "Show me my docs" | `dokki-workspace` (browse) |
 | "Find docs about X" / "What do we have on Y?" | `dokki-workspace` (search) |
+| "How is X related to Y?" / "Map relationships around X" | `dokki-workspace` (related entities) |
 | "Move / rename / tag / share / delete X" | `dokki-workspace` (organize) |
+| "Upload this file/image" | `dokki-workspace` (upload), then route to `dokki-document` if inserting into a doc |
 | "Write a doc about X" / "Create a note" | `dokki-document` (create) |
 | "Add / edit / rewrite section in doc" | `dokki-document` (edit) |
 | "Create a table of X" / "Track Y in a table" | `dokki-table` (create) |
@@ -86,7 +88,10 @@ These are the high-value flows — chain skills in this order:
 
 Before any operation, resolve context in this order:
 
-1. **Workspace**: If not specified and user has only one, use it. Otherwise `list_workspaces` and ask.
+1. **Workspace**: If not specified and user has only one, use it. Otherwise `list_workspaces`
+   and ask. Workspaces may be Personal (`org_id: null`) or Org-owned (`org_id`/`org_name`);
+   include Org name when disambiguating. If the desired Org is missing, the MCP connection
+   may not be authorized for it.
 2. **Resource**: If user gives a name, `list_resources` to match by name. If multiple match, ask. If the name is not obvious, `search_workspace` as fallback.
 3. **Parent folder** (for creates): If not specified, create at workspace root.
 

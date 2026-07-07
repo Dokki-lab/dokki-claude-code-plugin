@@ -1,7 +1,7 @@
 {
   "name": "dokki",
-  "description": "Create and edit Dokki documents, tables, and artifacts, publish public sites, and run semantic search across your workspace — directly from Claude Code.",
-  "version": "1.0.0",
+  "description": "Create and edit Dokki documents, tables, and artifacts, publish public sites, and search across your Personal and Org workspaces — directly from Claude Code.",
+  "version": "1.0.1",
   "author": {
     "name": "Dokki",
     "url": "https://dokki.one"

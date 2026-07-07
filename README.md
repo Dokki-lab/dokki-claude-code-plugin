@@ -1,6 +1,6 @@
 # Dokki for Claude Code
 
-> Bring your [Dokki](https://dokki.one) workspace into Claude Code — create and edit
+> Bring your [Dokki](https://dokki.one) workspaces into Claude Code — create and edit
 > documents, build tables and artifacts, publish public sites, and search everything
 > you've written, without leaving the terminal.
 
@@ -8,7 +8,8 @@ This plugin bundles:
 
 - **Two connectors** (`.mcp.json`) — Dokki's hosted MCP servers:
   - **`dokki`** (`/api/mcp`) — the core toolset: `create_document`, `doc_*`, `table_*`,
-    `artifact_*`, `search_workspace` / `grep_workspace`, and workspace management.
+    `artifact_*`, `search_workspace` / `grep_workspace` / `related_entities`,
+    file uploads, and workspace management.
   - **`dokki-publish`** (`/api/publish-mcp`) — public sites & custom domains, backing the
     `dokki-publish` skill only.
 - **Six skills** that orchestrate those tools into real workflows (routing, decision
@@ -17,7 +18,7 @@ This plugin bundles:
 | Skill | Command | Scope |
 |-------|---------|-------|
 | Entry / router | `/dokki:dokki <intent>` | Interprets intent, routes to the right skill, orchestrates multi-skill workflows |
-| Workspace | `/dokki:dokki-workspace` | Browse, search, organize (`list_*`, `search_workspace`, `grep_workspace`, `preview_resource`, move, tag, share, delete) |
+| Workspace | `/dokki:dokki-workspace` | Browse, search, organize (`list_*`, `search_workspace`, `grep_workspace`, `related_entities`, `preview_resource`, upload, move, tag, share, delete) |
 | Document | `/dokki:dokki-document` | Rich-text docs (`create_document`, `doc_read/insert/replace/delete/rewrite`) |
 | Table | `/dokki:dokki-table` | Structured data (`create_table`, `table_*`) |
 | Artifact | `/dokki:dokki-artifact` | Interactive JSX / charts (`create_artifact`, `artifact_*`) |
@@ -34,16 +35,20 @@ From the community marketplace:
 
 On first use, Claude Code connects to `https://dokki.one/api/mcp` and
 `https://dokki.one/api/publish-mcp`, then runs Dokki's OAuth flow in your browser — no
-API key to paste. Both servers share the same discovery, so it's one sign-in.
+API key to paste. During OAuth, choose the Personal and Org workspaces this MCP
+connection can access.
 
 ## Authentication
 
 Both servers support three auth methods:
 
 1. **OAuth** (default) — nothing to configure; Dokki's `.well-known` discovery endpoints
-   drive the browser sign-in.
+   drive the browser sign-in. Keep the URL as `/api/mcp`; Org and workspace scope are
+   selected in the Dokki consent screen. Older OAuth connections created before scoped
+   consent may only see Personal workspaces until you reconnect.
 2. **API key** — set an `Authorization: Bearer dk_...` header on each server entry if you
-   prefer static credentials:
+   prefer static credentials. A `dk_...` key is scoped to Personal or a single Org; use
+   separate server entries/keys when you need multiple Org scopes:
    ```json
    {
      "mcpServers": {
@@ -62,8 +67,9 @@ Both servers support three auth methods:
    ```
 3. **Connector token** — workspace-scoped tokens for embedded/integration use.
 
-For an organization workspace, point the core URL at
-`https://dokki.one/api/mcp/org/<orgId>`.
+The legacy `https://dokki.one/api/mcp/org/<orgId>` endpoint remains for older
+single-Org clients, but new OAuth/API-key configurations should use the unified
+`https://dokki.one/api/mcp` endpoint.
 
 ## Local development
 

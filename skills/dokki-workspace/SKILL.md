@@ -1,8 +1,8 @@
 ---
 name: dokki-workspace
-description: Browse workspaces, search the knowledge base, and organize resources (move, rename, tag, share, delete). Use for navigation, discovery, and workspace hygiene.
+description: Browse Personal and Org workspaces, search the knowledge base, explore related entities, upload files, and organize resources (move, rename, tag, share, delete). Use for navigation, discovery, and workspace hygiene.
 argument-hint: [action] [resource-name-or-id]
-allowed-tools: mcp__dokki__list_workspaces mcp__dokki__list_resources mcp__dokki__create_workspace mcp__dokki__create_folder mcp__dokki__move_resource mcp__dokki__update_resource mcp__dokki__delete_resource mcp__dokki__tag_resource mcp__dokki__untag_resource mcp__dokki__share_resource mcp__dokki__search_workspace mcp__dokki__grep_workspace mcp__dokki__preview_resource
+allowed-tools: mcp__dokki__list_workspaces mcp__dokki__list_resources mcp__dokki__create_workspace mcp__dokki__create_folder mcp__dokki__upload_file mcp__dokki__move_resource mcp__dokki__update_resource mcp__dokki__delete_resource mcp__dokki__tag_resource mcp__dokki__untag_resource mcp__dokki__share_resource mcp__dokki__search_workspace mcp__dokki__grep_workspace mcp__dokki__related_entities mcp__dokki__preview_resource
 ---
 
 # Dokki Workspace — Browse, Search & Organize
@@ -15,7 +15,7 @@ Determine which mode the user is in:
 User request
 │
 ├── "Show me / what's in / list…"        → BROWSE
-├── "Find / search / where is / look up" → SEARCH
+├── "Find / search / where is / look up / related" → SEARCH
 └── "Move / rename / tag / share / delete / organize" → ORGANIZE
 ```
 
@@ -27,14 +27,21 @@ If ambiguous, ask before acting.
 
 ### Workflow
 
-1. `list_workspaces` — Get all accessible workspaces with roles
-2. If user has only one workspace → use it directly. Otherwise ask or match by name.
+1. `list_workspaces` — Get all workspaces authorized for this MCP connection with roles.
+   Results include `org_id`, `org_name`, and `org` for Org workspaces; Personal
+   workspaces have `org_id: null`.
+2. If user has only one workspace → use it directly. Otherwise group by Personal/Org
+   and ask or match by name. If names collide, include the Org name in the choice.
 3. `list_resources` with `workspace_id` → Get the tree
 
 ### Output Template
 
 ```
-🏢 <workspace-name> (role: admin)
+Personal
+└── <workspace-name> (role: admin, id: a1b2c3d4)
+
+Org: <org-name> (<org-id-prefix>)
+└── <workspace-name> (role: editor, id: e5f6g7h8)
 
 📁 Projects/
 ├── 📄 PRD v2 (a1b2c3d4)
@@ -54,6 +61,9 @@ Icons: 📄 document, 📊 table, 🎨 artifact, 📁 folder
 - `list_resources` only returns non-archived resources
 - IDs shown to the user should be short (8-char prefix) — full UUIDs are visually noisy
 - If the user has many workspaces (>5), don't dump the full tree of all of them; ask which one
+- `list_workspaces` is scoped by the current MCP connection. If an expected Org or workspace
+  is missing, tell the user to reconnect OAuth and select that scope, or use the correct
+  Org-scoped API key. Do not ask them to change the server URL to an Org-specific endpoint.
 
 ---
 
@@ -65,8 +75,9 @@ Icons: 📄 document, 📊 table, 🎨 artifact, 📁 folder
 |------|----------|-----------|
 | `search_workspace` | **First choice.** Question-style / conceptual lookups ("what's our refund policy?") | Meaning (hybrid semantic + keyword) |
 | `grep_workspace` | You need an **exact** string, code token, identifier, or regex | Literal text / regex, line-level excerpts |
+| `related_entities` | User asks how people, companies, products, places, or concepts connect | Knowledge graph entities and relationships |
 
-Default to `search_workspace`. Reach for `grep_workspace` only when the user wants a precise literal match (a function name, error string, exact phrase).
+Default to `search_workspace`. Reach for `grep_workspace` only when the user wants a precise literal match (a function name, error string, exact phrase). Use `related_entities` for relationship mapping, not content lookup.
 
 ### Workflow
 
@@ -78,6 +89,8 @@ Default to `search_workspace`. Reach for `grep_workspace` only when the user wan
    (or `grep_workspace` with `pattern` for exact/regex matches)
 3. If results are weak, reformulate with different angles and run again
 4. To scan a single hit before a full `doc_read`, use `preview_resource` with its `resource_id`
+5. For "how is X related to Y?" or "what do we know around X?", call `related_entities`
+   and then read the most relevant returned resources.
 
 ### Query Strategy
 
@@ -104,6 +117,8 @@ Default to `search_workspace`. Reach for `grep_workspace` only when the user wan
 
 - Don't dump raw search results — summarize and pick the most relevant
 - The user usually wants an *answer*, not a list of links. Read top hits with `doc_read` (delegate to `dokki-document`) and synthesize if the intent is "find out what X is"
+- Search and grep results include absolute in-app `url` fields. Cite hits as markdown links
+  like `[Title](https://dokki.one/...)`, not raw IDs.
 
 ---
 
@@ -116,6 +131,7 @@ Default to `search_workspace`. Reach for `grep_workspace` only when the user wan
 | Create folder | `create_folder` | name, workspace_id, parent_id? | safe |
 | Rename | `update_resource` | resource_id, name | safe |
 | Change icon | `update_resource` | resource_id, icon (tables/folders only) | safe |
+| Upload file | `upload_file` | workspace_id, name, content_base64, mime_type?, parent_path? | safe |
 | Move | `move_resource` | resource_id, new_parent_path, insert_after_id? | safe |
 | Delete (archive) | `delete_resource` | resource_id | ⚠️ soft — recoverable |
 | Add tags | `tag_resource` | resource_id, tag_names[] | safe |
@@ -138,6 +154,14 @@ For "clean up my workspace":
 3. **Get user confirmation** before executing
 4. Execute: `create_folder` first, then `move_resource` per item, then `tag_resource`
 5. Show final tree
+
+### Uploads
+
+- `upload_file` expects bytes as base64 or a `data:...;base64,...` URL, never a local path.
+- For a normal file resource, pass `workspace_id`, `name`, `content_base64`, and optional
+  `parent_path`.
+- For an image that will be inserted into a document, set `inline_image: true`; the returned
+  `node` or `url` can be used with `doc_insert`.
 
 ### Pitfalls
 
