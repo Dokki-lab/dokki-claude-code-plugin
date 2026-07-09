@@ -1,8 +1,10 @@
 # Dokki for Claude Code
 
-> Bring your [Dokki](https://dokki.one) workspaces into Claude Code — create and edit
-> documents, build tables and artifacts, publish public sites, connect external apps, and
-> search everything you've written, without leaving the terminal.
+> **[Dokki](https://dokki.one) — agent-native collaboration OS.** The workspace where AI agents
+> work like teammates, reading, writing, reviewing, and publishing alongside people. This plugin
+> brings it into Claude Code — create and edit documents, build tables and artifacts, publish
+> public sites, connect 1000+ external apps, and search everything you've written, without
+> leaving the terminal.
 
 This plugin bundles:
 

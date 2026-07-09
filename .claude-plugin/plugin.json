@@ -1,6 +1,6 @@
 {
   "name": "dokki",
-  "description": "Create and edit Dokki documents, tables, and artifacts, publish public sites, connect 1000+ external integrations, and search across your Personal and Org workspaces \u2014 directly from Claude Code.",
+  "description": "Dokki \u2014 agent-native collaboration OS in Claude Code. Where people and agents create knowledge together: create and edit documents, tables, and artifacts, publish public sites, connect 1000+ external integrations, and search across your Personal and Org workspaces.",
   "version": "1.1.0",
   "author": {
     "name": "Dokki",
