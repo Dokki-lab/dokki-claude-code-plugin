@@ -37,7 +37,7 @@ action returns the subtree; missing args return a hint with an example. Dangerou
 | Skill | Command | Scope |
 |-------|---------|-------|
 | Entry / router | `/dokki:dokki <intent>` | Interprets intent, routes to the right skill, orchestrates multi-skill workflows |
-| Workspace | `/dokki:dokki-workspace` | Browse, search, organize, coordinate — `find`, `edit resource.*`, `message`, `connect`, upload |
+| Workspace | `/dokki:dokki-workspace` | Browse, search, organize, coordinate — `find`, `edit resource.*`, `share`, `message`, upload |
 | Document | `/dokki:dokki-document` | Rich-text docs and inline images — `create doc`, `read doc`, `edit doc.edit`/`doc.rewrite` |
 | Table | `/dokki:dokki-table` | Structured data — `create table`, `read table`, `edit table.edit` |
 | Artifact | `/dokki:dokki-artifact` | HTML or JSX artifacts, charts, interactive UI — `create artifact`, `edit artifact.*` |
