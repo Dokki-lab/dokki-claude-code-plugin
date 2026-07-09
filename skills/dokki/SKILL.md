@@ -49,7 +49,7 @@ The facades teach themselves — you rarely need to enumerate every arg:
 | Work with structured tabular data | `dokki-table` | `create {action:"table"}`, `read {action:"table"}`, `edit {action:"table.edit"}` |
 | Build HTML/JSX UI / charts / diagrams | `dokki-artifact` | `create {action:"artifact"}`, `read {action:"artifact"}`, `edit {action:"artifact.update"/"artifact.patch"}` |
 | Publish as a public site | `dokki-publish` | `publish {action:"site"/"site.create"/"site.update"/"add"/"remove"/"domain.*"}` |
-| Connect & use external integrations | (this router) | `connect {action:"apps"/"list"/"authorize"/"tools"/"call"}` |
+| Connect & use external integrations | `dokki-workspace` (CONNECT mode) | `connect {action:"apps"/"list"/"authorize"/"disconnect"/"tools"/"call"}` |
 
 ## Intent → Skill Routing
 
@@ -71,7 +71,7 @@ Match the user's request to these patterns:
 | "Add rows / update cells" | `dokki-table` (edit) |
 | "Make a chart / dashboard / widget" | `dokki-artifact` (create) |
 | "Make this doc / workspace public" | `dokki-publish` |
-| "Connect my GitHub / Slack / Gmail" / "Pull data from <app>" | `connect` (this router) |
+| "Connect my GitHub / Slack / Gmail" / "Pull data from <app>" | `dokki-workspace` (CONNECT) |
 
 ### External integrations — the `connect` facade
 
@@ -174,7 +174,7 @@ Some intents are genuinely ambiguous. Decision hints:
 - **"Visualize X"** → Is data already in Dokki? → `dokki-artifact` reading from a table. Is it new data? → `dokki-table` first, then `dokki-artifact`.
 - **"Share with someone"** → Single user by email → `dokki-workspace` `share {action:"user"}`. Public URL → `dokki-publish`.
 - **"Show me what's there"** → Hierarchy view → `dokki-workspace` browse. Content search → `dokki-workspace` search.
-- **"Get X from <external app>"** → `connect` first to fetch, then route the result to the right content skill.
+- **"Get X from <external app>"** → `dokki-workspace` CONNECT mode first to fetch, then route the result to the right content skill.
 
 ## Output Conventions
 

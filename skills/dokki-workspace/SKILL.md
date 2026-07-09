@@ -1,15 +1,15 @@
 ---
 name: dokki-workspace
-description: Browse Personal and Org workspaces, search the knowledge base, explore related entities, upload files, message workspace members, and organize resources (move, rename, tag, share, delete). Use for navigation, discovery, coordination, and workspace hygiene.
+description: Browse Personal and Org workspaces, search the knowledge base, explore related entities, upload files, message workspace members, connect external integrations (GitHub, Slack, Gmail, Notion, …), and organize resources (move, rename, tag, share, delete). Use for navigation, discovery, coordination, integrations, and workspace hygiene.
 argument-hint: [action] [resource-name-or-id]
-allowed-tools: mcp__dokki__find mcp__dokki__read mcp__dokki__create mcp__dokki__edit mcp__dokki__share mcp__dokki__message mcp__dokki__preview_resource
+allowed-tools: mcp__dokki__find mcp__dokki__read mcp__dokki__create mcp__dokki__edit mcp__dokki__share mcp__dokki__message mcp__dokki__connect mcp__dokki__preview_resource
 ---
 
-# Dokki Workspace — Browse, Search & Organize
+# Dokki Workspace — Browse, Search, Organize & Connect
 
-This skill drives the `find`, `edit`, `share`, `message`, and `create` facades. Every call is
-`<facade> {action, <top-level ids>, args:{…}}`. Facades are self-teaching: call one with **no
-`action`** to list its actions, and dangerous actions return a `confirm_token` you re-send to
+This skill drives the `find`, `edit`, `share`, `message`, `create`, and `connect` facades. Every
+call is `<facade> {action, <top-level ids>, args:{…}}`. Facades are self-teaching: call one with
+**no `action`** to list its actions, and dangerous actions return a `confirm_token` you re-send to
 execute.
 
 ## Mode Decision Tree
@@ -19,9 +19,10 @@ Determine which mode the user is in:
 ```
 User request
 │
-├── "Show me / what's in / list…"                 → BROWSE
-├── "Find / search / where is / look up / related" → SEARCH
-├── "Ask / notify / confirm with a teammate"      → CHANNEL
+├── "Show me / what's in / list…"                    → BROWSE
+├── "Find / search / where is / look up / related"    → SEARCH
+├── "Ask / notify / confirm with a teammate"          → CHANNEL
+├── "Connect / pull from / push to <external app>"    → CONNECT
 └── "Move / rename / tag / share / delete / organize" → ORGANIZE
 ```
 
@@ -154,6 +155,45 @@ or wait for a teammate's answer before continuing.
 - For destructive or visible actions, wait for an explicit reply before continuing.
 - Keep the message self-contained: what you plan to do, what answer you need, and any
   resource links or short IDs.
+
+---
+
+## CONNECT Mode
+
+Dokki's MCP is a **gateway to 1000+ external integrations** (via Composio: GitHub, Slack, Gmail,
+Notion, Google Sheets/Drive/Calendar, Linear, and more). Use CONNECT when the user wants to pull
+data from — or push data to — a system outside Dokki. Connections are **user-scoped**: the user
+authorizes their own accounts *through* Dokki once, and every skill can then read/write them.
+
+### Action Matrix
+
+| Step | Facade call | Notes |
+|------|-------------|-------|
+| Discover integrations | `connect {action:"apps", args:{query?, limit?}}` | Search the 1000+ available toolkits |
+| See what's connected | `connect {action:"list"}` | Your accounts + their status |
+| Authorize a new one | `connect {action:"authorize", args:{toolkit:"github"}}` | Returns an OAuth `authorize_url` (or an API-key form); open it, then poll `list` until active |
+| Disconnect | `connect {action:"disconnect", args:{connection_id}}` | Remove one account |
+| List callable tools | `connect {action:"tools", args:{toolkit?}}` | The tools your connections expose |
+| Run a tool | `connect {action:"call", args:{tool, args}}` | The relay executes it and returns the result |
+
+### Workflow
+
+1. `connect {action:"list"}` — check whether the needed toolkit is already connected.
+2. If not, `connect {action:"authorize", args:{toolkit}}` → give the user the returned
+   `authorize_url` to open, then poll `connect {action:"list"}` until it reports active.
+3. `connect {action:"tools", args:{toolkit}}` to find the right tool name for the task.
+4. `connect {action:"call", args:{tool, args}}` to fetch or push the data.
+5. Route the result into Dokki — `create {action:"table"}` (structured) or
+   `create {action:"doc"}` (narrative). This is the **External Data → Dokki** flow.
+
+### Pitfalls
+
+- Connections are per-user, not per-workspace — authorizing once covers every workspace.
+- Never fabricate a `tool` name; always discover it via `connect {action:"tools"}` first.
+- `authorize` doesn't complete the connection — the user must finish OAuth in the browser, and
+  you must poll `list` until it's active before calling tools.
+- If `COMPOSIO_API_KEY` isn't configured on the server, `connect` fails soft — tell the user
+  integrations aren't enabled rather than retrying.
 
 ---
 
