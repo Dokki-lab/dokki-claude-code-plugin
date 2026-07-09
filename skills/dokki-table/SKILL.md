@@ -2,10 +2,13 @@
 name: dokki-table
 description: Create tables with typed columns, and edit rows, columns, and cells. Use for structured/tabular data.
 argument-hint: <action> [table-name-or-id] [details]
-allowed-tools: mcp__dokki__create_table mcp__dokki__table_read mcp__dokki__table_add_rows mcp__dokki__table_delete_rows mcp__dokki__table_add_columns mcp__dokki__table_delete_columns mcp__dokki__table_update_columns mcp__dokki__table_update_cells
+allowed-tools: mcp__dokki__create mcp__dokki__read mcp__dokki__edit
 ---
 
 # Dokki Table — Create & Manage
+
+Tables live behind `create {action:"table"}`, `read {action:"table"}`, and
+`edit {action:"table.edit"}`. Each is `<facade> {action, <ids>, args:{…}}`.
 
 ## Is a table the right resource?
 
@@ -19,16 +22,18 @@ If data is for **visualization**, still create the table first (source of truth)
 
 ## CREATE Mode
 
-### Tool
+### Action
 
 ```
-create_table:
-  name: string
+create:
+  action: "table"
   workspace_id: string
   parent_id?: string
-  description?: string
-  columns?: [{ headerName, type }]
-  rows?: [{ <headerName>: <value>, … }]  # keyed by headerName on create only
+  args:
+    name: string
+    description?: string
+    columns?: [{ headerName, type }]
+    rows?: [{ <headerName>: <value>, … }]   # keyed by headerName
 ```
 
 ### Column Type Selection
@@ -79,9 +84,39 @@ create_table:
 
 ## EDIT Mode
 
-### Golden Rule
+### Reading — `read {action:"table"}` can query, not just dump
 
-**Always call `table_read` before editing** to get current column and row IDs. The compact format returns short 8-char IDs — use these in all subsequent operations.
+`read {action:"table", resource_id, args:{where?, where_match?, columns?, sort?, page?, page_size?}}`
+returns **20 rows by default** and supports server-side filtering so you don't pull the whole table:
+
+| Arg | Effect |
+|-----|--------|
+| `where` / `where_match` | Filter rows by column values |
+| `columns` | Return only the columns you care about (accepts **header names**) |
+| `sort` | Order rows |
+| `page` / `page_size` | Paginate large tables |
+
+Read before editing to confirm current rows and headers. **Column edits accept header names**, so
+you usually don't need internal column ids at all.
+
+### `edit {action:"table.edit"}` — one facade, op array
+
+All row/column/cell mutations go through a single action with an `ops` list. A single op is just a
+one-element list; batch related ops together.
+
+| Change | Op |
+|--------|----|
+| Add records | `{op:"rows.add", rows:[…]}` |
+| Remove records | `{op:"rows.delete", rowIds:[…]}` |
+| Change cell data | `{op:"cells.update", updates:[{rowId, columnId, value}]}` |
+| New field | `{op:"columns.add", columns:[{headerName, type}]}` |
+| Remove field | `{op:"columns.delete", columnIds:[…]}` — ⚠️ **confirm** (deletes all cells in it) |
+| Rename / retype | `{op:"columns.update", columns:[…]}` |
+
+`columnId` accepts a **header name** or an internal id — pass the header name for convenience. A
+`columns.delete` op returns `requires_confirmation` + a `confirm_token`; re-send the same call with
+the token to execute. Singular actions (`table.rows.add`, `table.cells.update`, …) still exist if
+you prefer one op per call.
 
 ### Operation Decision Tree
 
@@ -89,43 +124,36 @@ create_table:
 What's changing?
 │
 ├── ROWS
-│   ├── Adding records     → table_add_rows
-│   ├── Removing records   → table_delete_rows
-│   └── Changing cell data → table_update_cells (by rowId + columnId)
+│   ├── Adding records     → ops:[{op:"rows.add", rows}]
+│   ├── Removing records   → ops:[{op:"rows.delete", rowIds}]
+│   └── Changing cell data → ops:[{op:"cells.update", updates}]   (by rowId + columnId/header)
 │
 ├── COLUMNS (schema)
-│   ├── New field          → table_add_columns
-│   ├── Remove field       → table_delete_columns (deletes all cells in it)
-│   └── Rename / retype    → table_update_columns
+│   ├── New field          → ops:[{op:"columns.add", columns}]
+│   ├── Remove field       → ops:[{op:"columns.delete", columnIds}]   ⚠️ confirm
+│   └── Rename / retype     → ops:[{op:"columns.update", columns}]
 │
 └── BOTH
-    → Execute column changes first, then row changes
+    → put column ops before row ops in the same ops array
 ```
-
-### `table_update_cells` vs `table_add_rows`
-
-- **`update_cells`** — Change values in rows that already exist. Target specific cells by `rowId` + `columnId`.
-- **`add_rows`** — Insert new rows with initial values. `values` is keyed by **columnId** (not headerName) from the compact read.
-
-### Format Choice on `table_read`
-
-| Format | When to use |
-|--------|-------------|
-| `compact` (default) | Editing — get short IDs |
-| `csv` | Human-readable display, export |
 
 ### Batch Updates
 
-Group cell updates into a **single `table_update_cells` call** when possible. Avoid one call per cell.
+Group cell updates into a **single `cells.update` op** when possible. Avoid one op (or one call) per cell.
 
 ```json
-table_update_cells({
+edit({
+  "action": "table.edit",
   "resource_id": "…",
-  "updates": [
-    { "rowId": "0a2b", "columnId": "c1", "value": "Done" },
-    { "rowId": "0a2b", "columnId": "c2", "value": true },
-    { "rowId": "3f4e", "columnId": "c1", "value": "In Progress" }
-  ]
+  "args": {
+    "ops": [
+      { "op": "cells.update", "updates": [
+        { "rowId": "0a2b", "columnId": "Status",   "value": "Done" },
+        { "rowId": "0a2b", "columnId": "Done",     "value": true },
+        { "rowId": "3f4e", "columnId": "Status",   "value": "In Progress" }
+      ]}
+    ]
+  }
 })
 ```
 
@@ -135,15 +163,14 @@ table_update_cells({
 
 | Pitfall | Why it hurts | Fix |
 |---------|-------------|-----|
-| Editing without `table_read` first | Stale column/row IDs, wrong cells hit | Always read immediately before edit |
-| Using headerName in update_cells | Tool wants `columnId`, not name | Get IDs from compact read |
-| Using headerName in add_rows `values` | Same problem after initial create | On update path, use columnId |
-| Deleting a column with data | All cell values in that column are lost (not recoverable) | Confirm with user; consider exporting first |
+| Pulling the whole table to edit a few rows | Wastes tokens on big tables | Use `read {action:"table", args:{where, columns, page}}` to fetch just what you need |
+| Deleting a column with data | All cell values in that column are lost (not recoverable) | `columns.delete` requires a `confirm_token` — confirm with user; consider exporting first |
 | Changing column `type` with incompatible data | Existing cells may become invalid | Warn user; consider new column + migrate |
-| Many single-cell updates | Slow and chatty | Batch into one `update_cells` call |
+| Many single-cell calls | Slow and chatty | Batch into one `cells.update` op |
+| Assuming you need internal column ids | Extra lookups | `columnId` accepts the **header name** for row/cell/column ops |
 
 ## Cross-Skill Follow-Ups
 
 - Visualize the data → `dokki-artifact` (create artifact that renders a chart from this table)
-- Share the table → `dokki-workspace` `share_resource`
-- Publish the table to a public site → `dokki-publish` `publish_resource`
+- Share the table → `dokki-workspace` `share {action:"user"}`
+- Publish the table to a public site → `dokki-publish` `publish {action:"add", site_id, resource_id}`

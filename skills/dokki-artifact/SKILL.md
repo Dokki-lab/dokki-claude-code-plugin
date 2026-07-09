@@ -2,10 +2,13 @@
 name: dokki-artifact
 description: Create or edit HTML or JSX artifacts — self-contained pages, React components, charts (Recharts), diagrams (Mermaid), animations (Framer Motion). Use for anything interactive or visual beyond what a document can express.
 argument-hint: <description-or-id> [instruction]
-allowed-tools: mcp__dokki__create_artifact mcp__dokki__artifact_read mcp__dokki__artifact_update mcp__dokki__artifact_patch
+allowed-tools: mcp__dokki__create mcp__dokki__read mcp__dokki__edit mcp__dokki__preview_resource
 ---
 
 # Dokki Artifact — Create & Edit
+
+Artifacts live behind `create {action:"artifact"}`, `read {action:"artifact"}`, and
+`edit {action:"artifact.update"/"artifact.patch"}`. Each is `<facade> {action, <ids>, args:{…}}`.
 
 ## Is an artifact the right resource?
 
@@ -25,8 +28,8 @@ allowed-tools: mcp__dokki__create_artifact mcp__dokki__artifact_read mcp__dokki_
 - Use **HTML** for a self-contained document with inline styles/scripts or CDN assets.
 - Use **JSX** when you specifically need a React component. JSX must default-export
   a component and can use the runtime libraries below.
-- `artifact_read` returns source only. To see a rendered inline preview, use
-  `dokki-workspace` `preview_resource`.
+- `read {action:"artifact", resource_id}` returns source only. To see a rendered inline preview,
+  use `preview_resource {resource_id}`.
 
 ## JSX Runtime Environment
 
@@ -61,14 +64,16 @@ Nothing else will resolve. No filesystem, no network, no npm install.
 
 ## CREATE Mode
 
-### Tool
+### Action
 
 ```
-create_artifact:
-  name: string
+create:
+  action: "artifact"
   workspace_id: string
   parent_id?: string
-  source: string    # Complete HTML document/fragment or JSX module
+  args:
+    name: string
+    source: string    # Complete HTML document/fragment or JSX module
 ```
 
 ### Required JSX source structure
@@ -193,17 +198,17 @@ export default function Checklist() {
 How big is the change?
 │
 ├── New component from scratch / near-total rewrite
-│     └── artifact_update (full source)
+│     └── edit {action:"artifact.update", resource_id, args:{source}}   (full source)
 │
 └── Localized change (rename prop, adjust style, fix bug)
-      └── artifact_patch (old_string → new_string)
+      └── edit {action:"artifact.patch", resource_id, args:{old_string, new_string}}
 ```
 
 ### Always Read First
 
-`artifact_read` returns the **current** source — which may differ from what you created earlier if a human edited it. Reading first avoids overwriting their changes.
+`read {action:"artifact", resource_id}` returns the **current** source — which may differ from what you created earlier if a human edited it. Reading first avoids overwriting their changes.
 
-`artifact_patch` uses 3-way merge for concurrent-safe edits, but it needs `old_string` to match **exactly** — including whitespace.
+`artifact.patch` uses 3-way merge for concurrent-safe edits, but it needs `old_string` to match **exactly** — including whitespace.
 
 ---
 
@@ -217,7 +222,7 @@ How big is the change?
 | Using CSS files / styled-components | No CSS pipeline in sandbox | Use Tailwind utility classes only |
 | Forgetting `ResponsiveContainer` on charts | Charts render at 0px | Wrap Recharts in `<ResponsiveContainer width="100%" height={N}>` |
 | Mermaid imported from `mermaid-js` | Wrong path — fails | Use `import { Mermaid } from 'mermaid'` |
-| `artifact_patch` with fuzzy match | Fails silently or wrong spot | `old_string` must be exact (incl. whitespace & indentation) |
+| `artifact.patch` with fuzzy match | Fails silently or wrong spot | `old_string` must be exact (incl. whitespace & indentation) |
 | Giant single-file artifact (>500 lines) | Slow to render, hard to edit | Keep it focused; compose inline sub-components |
 | External data fetching | No network in sandbox | Inline the data or fetch it via MCP and hardcode into source |
 
@@ -225,4 +230,4 @@ How big is the change?
 
 - Need the data first? → `dokki-table` to create/read the table, then inline the data in the artifact
 - Publish the artifact in a docs site? → `dokki-publish`
-- Place next to related docs? → `dokki-workspace` `move_resource`
+- Place next to related docs? → `dokki-workspace` `edit {action:"resource.move"}`

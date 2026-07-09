@@ -2,38 +2,43 @@
 name: dokki-document
 description: Create new documents or edit existing ones using compact node-based operations. Use for writing and modifying rich-text content.
 argument-hint: <title-or-resource-id> [instruction]
-allowed-tools: mcp__dokki__create_document mcp__dokki__upload_file mcp__dokki__doc_read mcp__dokki__doc_insert mcp__dokki__doc_replace mcp__dokki__doc_delete mcp__dokki__doc_rewrite
+allowed-tools: mcp__dokki__create mcp__dokki__read mcp__dokki__edit
 ---
 
 # Dokki Document — Create & Edit
+
+Documents live behind three facade actions: `create {action:"doc"}`, `read {action:"doc"}`, and
+`edit {action:"doc.edit"/"doc.rewrite"}`. Each is `<facade> {action, <ids>, args:{…}}`.
 
 ## Mode Decision
 
 ```
 Does the resource exist?
 ├── No  → CREATE mode
-└── Yes → EDIT mode (always doc_read first)
+└── Yes → EDIT mode
 ```
 
 ---
 
 ## CREATE Mode
 
-### Tool
+### Action
 
-`create_document` — Creates document with initial Markdown content.
+`create {action:"doc", …}` — Creates a document with initial Markdown content.
 
 ```
-create_document:
-  name: string            # Document title (stored separately, NOT in content)
+create:
+  action: "doc"
   workspace_id: string
   parent_id?: string      # Folder ID, omit for workspace root
-  content?: string        # Markdown body — NO H1 title
+  args:
+    name: string          # Document title (stored separately, NOT in content)
+    content?: string      # Markdown body — NO H1 title
 ```
 
 ### Content Authoring Rules
 
-1. **NO H1** in content — title goes in `name` field
+1. **NO H1** in content — title goes in `args.name`
 2. Start body with intro paragraph or H2 heading
 3. Use Markdown syntax:
    - `## Heading 2`, `### Heading 3`
@@ -42,8 +47,8 @@ create_document:
    - `> quote`, `| table | syntax |`
    - `**bold**`, `*italic*`, `[link](url)`, `` `code` ``
 4. Keep paragraphs focused; use headings for scannable sections
-5. For local images, call `upload_file` with `inline_image: true` first, then insert
-   the returned image `node` with `doc_insert` or use its `url` as the image `src`.
+5. For local images, upload first via `dokki-workspace` → `create {action:"file", args:{inline_image:true}}`,
+   then insert the returned image with an `edit {action:"doc.edit"}` `insert` op, or use its `url` as the image `src`.
 
 ### Templates
 
@@ -124,9 +129,32 @@ create_document:
 
 ## EDIT Mode
 
-### Golden Rule
+### Reading first — `read {action:"doc"}` has modes
 
-**Always call `doc_read` immediately before any edit.** Node IDs are short 8-char prefixes that change when the document is modified; stale IDs cause failures or edit the wrong nodes.
+`read {action:"doc", resource_id, args:{mode?, page?, locator?}}` supports three modes — pick the
+lightest one for the job:
+
+| Mode | Returns | Use for |
+|------|---------|---------|
+| `view` (default) | Markdown of the doc — **no node ids** | Understanding current content before an edit |
+| `outline` | Headings only | Orienting in a large doc, finding the section to target |
+| `edit` | Node ids for a **located region** | When you specifically need node ids for a precise op |
+
+Large docs paginate — pass `args.page`. Use `outline` to locate a section cheaply, then read just
+that region in `edit` mode with a `locator` if you need node ids.
+
+### Golden Rule — anchor/section beats node ids
+
+The `doc.edit` op-array can **locate by anchor or section**, so most edits need **no node ids and
+no prior read** of the raw structure:
+
+- Locate by `anchor:{text}` — matches on visible text near where you want to act.
+- Locate by `section` — targets a heading and its body.
+- Only fall back to `node_id` (from `read {action:"doc", args:{mode:"edit"}}`) when anchor/section
+  can't pin the spot uniquely.
+
+When you do use `node_id`, read immediately before the edit — node IDs are short 8-char prefixes
+that change when the document is modified.
 
 ### Operation Decision Tree
 
@@ -134,74 +162,86 @@ create_document:
 What's the edit?
 │
 ├── Add NEW content (section, paragraph, list)
-│     └── doc_insert  (anchor node_id + position before/after)
+│     └── edit {action:"doc.edit", args:{ops:[{op:"insert", anchor|section|node_id, position?, markdown}]}}
 │
 ├── Modify EXISTING content
-│     ├── Single node (one paragraph / one heading)
-│     │     └── doc_replace (node_id only)
-│     └── Multiple consecutive nodes (rewrite a section)
-│           └── doc_replace (node_id + end_node_id for range)
+│     └── edit {action:"doc.edit", args:{ops:[{op:"replace", anchor|section|node_id, markdown}]}}
 │
 ├── Remove content
-│     └── doc_delete (node_ids[])
+│     └── edit {action:"doc.edit", args:{ops:[{op:"delete", anchor|section|node_id}]}}
 │
 └── Replace the ENTIRE document body
-      └── doc_rewrite (resource_id + full node list; no doc_read needed)
+      └── edit {action:"doc.rewrite", args:{markdown}}   # no read, no node ids
 ```
+
+A single op is just a **one-element `ops` list**. Batch several ops into one `ops` array when
+making related edits.
+
+### `doc.edit` op shape
+
+```json
+edit({
+  "action": "doc.edit",
+  "resource_id": "…",
+  "args": {
+    "ops": [
+      { "op": "insert",  "anchor": { "text": "## Risks" }, "position": "after", "markdown": "### New risk\nDetails here." },
+      { "op": "replace", "section": "Overview", "markdown": "## Overview\nRewritten intro." },
+      { "op": "delete",  "anchor": { "text": "Deprecated note" } }
+    ]
+  }
+})
+```
+
+- `markdown` is accepted directly — write natural Markdown, not compact node JSON.
+- `position` (`before` | `after`) applies to `insert` relative to the located anchor/section.
+- Singular actions `doc.insert` / `doc.replace` / `doc.delete` still exist if you prefer one op per call.
 
 ### Full Rewrite
 
-To replace the entire document body, use `doc_rewrite` (resource_id + the full
-`nodes` list). It bypasses `doc_replace`'s range cap and does **not** require a prior
-`doc_read`, so it's the right tool for "rewrite this whole doc" / "regenerate from
-scratch". Returns before/after node counts.
+To replace the entire document body, use `edit {action:"doc.rewrite", resource_id, args:{markdown}}`
+(or `args:{nodes}`). It's the **lowest-fragility path**: no prior `read`, no node ids — the right
+tool for "rewrite this whole doc" / "regenerate from scratch". Returns before/after node counts.
 
-Reserve `doc_replace` with a `node_id`…`end_node_id` range for rewriting a *section*,
-not the whole document.
+Reserve a `doc.edit` `replace` op over a `section` for rewriting a *section*, not the whole document.
 
-### Node Format Reference
+### Markdown authoring reference
 
-```json
-// Paragraph
-{ "type": "paragraph", "text": "Hello **world**. See [docs](https://…)." }
+Everything is plain Markdown inside `content` / `markdown`:
 
-// Heading (level 1-6; but avoid level 1 — reserved for title)
-{ "type": "heading", "level": 2, "text": "Section" }
+```markdown
+## Section
+Paragraph with **bold**, *italic*, a [link](https://…), and `inline code`.
 
-// Code block
-{ "type": "codeBlock", "language": "typescript", "text": "const x = 1;" }
+- bullet one
+- bullet two
 
-// Bullet / Ordered list
-{ "type": "bulletList", "items": [{ "text": "item one" }, { "text": "item two" }] }
-{ "type": "orderedList", "items": [{ "text": "step one" }, { "text": "step two" }] }
+1. step one
+2. step two
 
-// Task list
-{ "type": "taskList", "items": [
-  { "text": "done task", "checked": true },
-  { "text": "pending task", "checked": false }
-] }
+- [x] done task
+- [ ] pending task
 
-// Table (pass full Markdown table as text)
-{ "type": "table", "text": "| Name | Age |\n| --- | --- |\n| Alice | 30 |" }
+> Less is more.
 
-// Blockquote
-{ "type": "blockquote", "text": "Less is more." }
+| Name | Age |
+| --- | --- |
+| Alice | 30 |
 
-// Image
-{ "type": "image", "src": "https://example.com/img.png", "alt": "Description" }
-// Image returned from upload_file inline_image mode
-{ "type": "image", "src": "<returned url>", "alt": "<returned alt text>" }
+​```typescript
+const x = 1;
+​```
 
-// Horizontal rule
-{ "type": "horizontalRule" }
-
-// Inline SVG (raw <svg> markup in `code`; optional `title`)
-{ "type": "svg", "code": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><circle cx=\"50\" cy=\"50\" r=\"40\" fill=\"tomato\"/></svg>", "title": "Red circle" }
+![Description](https://example.com/img.png)
 ```
 
-> SVG markup is stored verbatim in `code` and sanitized at render time
-> (`<script>` and event handlers are stripped). Put the full
-> `<svg>…</svg>` element in `code`, not in `text`.
+For an image returned from an upload (`create {action:"file", args:{inline_image:true}}`), use the
+returned `url` as the image `src` in your Markdown, or insert the returned image `node` via a
+`doc.edit` `insert` op.
+
+> Raw inline SVG is supported — pass an `svg` node (with the `<svg>…</svg>` markup in its `code`
+> field) via a `doc.edit` op using `nodes` instead of `markdown`. SVG is sanitized at render time
+> (`<script>` and event handlers are stripped).
 
 ---
 
@@ -209,16 +249,17 @@ not the whole document.
 
 | Pitfall | Why it hurts | Fix |
 |---------|-------------|-----|
-| Editing without `doc_read` first | Node IDs are stale, operations target wrong content | Always read immediately before edit |
-| Including H1 in content | Title duplicated (once in `name`, once in body) | Put title in `name`, start content with H2+ |
-| Using full UUIDs everywhere | Noisy, wastes tokens | Use short 8-char IDs from `doc_read` output |
-| Massive single-node rewrites | Loses change granularity | Break into multiple `doc_replace` calls by section |
-| `doc_insert` with a wrong anchor | Content ends up in wrong place | Read the node and one before/after to verify anchor |
-| Forgetting `end_node_id` on range replace | Only first node gets replaced | For multi-node rewrites, always set `end_node_id` |
+| Reaching for node ids by default | Extra reads, stale-id failures | Locate by `anchor:{text}` or `section` — no read needed |
+| Using a `node_id` without reading right before | Node IDs go stale after any edit | Read in `edit` mode immediately before, or use anchor/section |
+| Including H1 in content | Title duplicated (once in `name`, once in body) | Put title in `args.name`, start content with H2+ |
+| Reading a huge doc in full to make one edit | Wastes tokens | `read` in `outline` mode to locate, then edit by section |
+| Massive single-op rewrites of a section | Loses change granularity | Split into multiple `ops` by section, or use `doc.rewrite` for the whole doc |
+| `insert` op with a wrong/ambiguous anchor | Content lands in the wrong place | Use a distinctive anchor phrase or a `section`; verify with an `outline` read |
+| Passing compact node JSON where markdown is expected | Confusing / rejected | Prefer `markdown` in `doc.edit` ops; use `nodes` only for special node types (e.g. svg) |
 
 ## Cross-Skill Follow-Ups
 
 - Need to publish the doc? → `dokki-publish`
 - Need to tag, move, or share? → `dokki-workspace`
-- Need to insert a local image? → `upload_file` with `inline_image: true`, then `doc_insert`
+- Need to insert a local image? → `dokki-workspace` `create {action:"file", args:{inline_image:true}}`, then a `doc.edit` `insert` op
 - Need to embed a chart? → `dokki-artifact` (create artifact), then link it in the doc

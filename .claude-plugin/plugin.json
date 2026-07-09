@@ -1,7 +1,7 @@
 {
   "name": "dokki",
-  "description": "Create and edit Dokki documents, tables, and artifacts, publish public sites, and search across your Personal and Org workspaces — directly from Claude Code.",
-  "version": "1.0.1",
+  "description": "Create and edit Dokki documents, tables, and artifacts, publish public sites, connect 1000+ external integrations, and search across your Personal and Org workspaces \u2014 directly from Claude Code.",
+  "version": "1.1.0",
   "author": {
     "name": "Dokki",
     "url": "https://dokki.one"
@@ -14,6 +14,7 @@
     "documents",
     "collaboration",
     "publishing",
+    "integrations",
     "mcp"
   ]
 }
