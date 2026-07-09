@@ -169,7 +169,7 @@ authorizes their own accounts *through* Dokki once, and every skill can then rea
 
 | Step | Facade call | Notes |
 |------|-------------|-------|
-| Discover integrations | `connect {action:"apps", args:{query?, limit?}}` | Search the 1000+ available toolkits |
+| Discover integrations | `connect {action:"apps", args:{query?, limit?}}` | Search the 1000+ toolkits; each result's `slug` is what you pass as `toolkit` to `authorize` |
 | See what's connected | `connect {action:"list"}` | Your accounts + their status |
 | Authorize a new one | `connect {action:"authorize", args:{toolkit:"github"}}` | Returns an OAuth `authorize_url` (or an API-key form); open it, then poll `list` until active |
 | Disconnect | `connect {action:"disconnect", args:{connection_id}}` | Remove one account |
