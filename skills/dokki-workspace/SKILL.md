@@ -163,10 +163,12 @@ or wait for a teammate's answer before continuing.
 
 | Action | Facade call | Key params | Risk |
 |--------|-------------|-----------|------|
+| Create workspace | `create {action:"workspace"}` | args:{name, org_id?} — new top-level workspace; you become admin | safe |
 | Create folder | `create {action:"folder"}` | workspace_id, args:{name}, parent_id? | safe |
 | Rename | `edit {action:"resource.update"}` | resource_id, args:{name} | safe |
 | Change icon | `edit {action:"resource.update"}` | resource_id, args:{icon} — emoji **or** `lucide:<name>` | safe |
 | Upload file | `create {action:"file"}` | workspace_id, args:{name, content_base64, mime_type?}, parent_path? | safe |
+| Download / read a file | `read {action:"file"}` | resource_id, args:{format?} — signed URL by default, base64 for small files | safe |
 | Ask/notify workspace members | `message {action:"members"/"send"/"read"}` | workspace_id, args:{content, require_response?} | visible to workspace |
 | Move | `edit {action:"resource.move"}` | resource_id, args:{new_parent_path}, insert_after_id? | safe |
 | Delete (archive) | `edit {action:"resource.delete"}` | resource_id | ⚠️ **confirm** — soft, recoverable |
@@ -197,7 +199,7 @@ For "clean up my workspace":
 4. Execute: `create {action:"folder"}` first, then `edit {action:"resource.move"}` per item, then `edit {action:"resource.tag"}`
 5. Show final tree
 
-### Uploads
+### Uploads & downloads
 
 - `create {action:"file"}` expects bytes as base64 or a `data:...;base64,...` URL in
   `args.content_base64`, never a local path.
@@ -205,6 +207,14 @@ For "clean up my workspace":
   `parent_path`.
 - For an image that will be inserted into a document, set `args:{inline_image: true}`; the returned
   `node` or `url` can be used with `edit {action:"doc.edit"}` (an `insert` op).
+- To read a file resource back, `read {action:"file", resource_id}` returns a signed URL by
+  default (base64 for small files); pass `args:{format:"base64"}` to force inline bytes.
+
+### New workspaces
+
+`create {action:"workspace", args:{name, org_id?}}` spins up a **new top-level workspace** (you
+become its admin). Pass `org_id` to create it under an Organization you belong to; omit it for a
+Personal workspace. This is a global action — a workspace-scoped connector can't call it.
 
 ### Pitfalls
 
