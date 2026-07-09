@@ -75,6 +75,10 @@ Match the user's request to these patterns:
 
 ### External integrations — the `connect` facade
 
+The canonical home for this is **`dokki-workspace` CONNECT mode** — route there for the full
+flow. This table is the router's quick reference for orchestrating it inside multi-skill
+workflows (e.g. #8 below).
+
 Dokki's MCP is also a **gateway to 1000+ external integrations** (via Composio: GitHub,
 Slack, Gmail, Notion, Google Sheets/Drive/Calendar, Linear, and more). Connections are
 **user-scoped** — the user authorizes their own accounts *through* Dokki, once, and every
