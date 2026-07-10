@@ -34,7 +34,13 @@ create:
   args:
     name: string          # Document title (stored separately, NOT in content)
     content?: string      # Markdown body — NO H1 title
+    metadata?: object     # Structured JSON on the resource, e.g.
+                          # {kind:"api_endpoint", http_method:"GET", path:"/api/v1/credits"}
 ```
+
+`args.metadata` attaches structured JSON to the document resource (distinct from its Markdown
+body) — useful for classifying docs, e.g. an API-endpoint catalog. Set it later or change it with
+`edit {action:"resource.update", resource_id, args:{metadata}}` (replaces the object wholesale).
 
 ### Content Authoring Rules
 

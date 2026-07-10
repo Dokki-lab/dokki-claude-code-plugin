@@ -207,6 +207,7 @@ authorizes their own accounts *through* Dokki once, and every skill can then rea
 | Create folder | `create {action:"folder"}` | workspace_id, args:{name}, parent_id? | safe |
 | Rename | `edit {action:"resource.update"}` | resource_id, args:{name} | safe |
 | Change icon | `edit {action:"resource.update"}` | resource_id, args:{icon} — emoji **or** `lucide:<name>` | safe |
+| Set metadata | `edit {action:"resource.update"}` | resource_id, args:{metadata} — structured JSON on the resource; **replaces wholesale** ({} clears) | safe |
 | Upload file | `create {action:"file"}` | workspace_id, args:{name, content_base64, mime_type?}, parent_path? | safe |
 | Download / read a file | `read {action:"file"}` | resource_id, args:{format?} — signed URL by default, base64 for small files | safe |
 | Ask/notify workspace members | `message {action:"members"/"send"/"read"}` | workspace_id, args:{content, require_response?} | visible to workspace |
@@ -222,6 +223,20 @@ authorizes their own accounts *through* Dokki once, and every skill can then rea
 `edit {action:"resource.update", resource_id, args:{icon}}` accepts either an **emoji** or a
 **Lucide icon** as `lucide:<kebab-name>` (e.g. `lucide:rocket`, `lucide:file-text`). Unlike the
 old surface, this works on **any** resource type — documents, tables, artifacts, and folders.
+
+### Resource metadata (structured JSON)
+
+`edit {action:"resource.update", resource_id, args:{metadata}}` stores an arbitrary JSON object
+on the resource — e.g. classifying a doc as an API endpoint:
+
+```
+edit {action:"resource.update", resource_id, args:{metadata:{
+  kind:"api_endpoint", http_method:"GET", path:"/api/v1/credits", scope:"credit:read"
+}}}
+```
+
+It **replaces** the whole metadata object (not a merge) — send the complete object each time;
+`{}` clears it. `create {action:"doc", …, args:{metadata}}` sets it at creation time.
 
 ### `resource.move` path format
 
