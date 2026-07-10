@@ -236,7 +236,9 @@ edit {action:"resource.update", resource_id, args:{metadata:{
 ```
 
 It **replaces** the whole metadata object (not a merge) — send the complete object each time;
-`{}` clears it. `create {action:"doc", …, args:{metadata}}` sets it at creation time.
+`{}` clears it. Metadata is a property of the **resource**, so every `create` action —
+`doc`, `table`, `artifact`, `folder`, and `file` (upload) — also accepts `args.metadata` to
+set it at creation time.
 
 ### `resource.move` path format
 
